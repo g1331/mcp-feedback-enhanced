@@ -32,7 +32,7 @@ from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image as MCPImage
-from mcp.types import TextContent
+from mcp.types import ImageContent, TextContent
 from pydantic import Field
 
 # 導入統一的調試功能
@@ -360,17 +360,17 @@ def create_feedback_text(feedback_data: dict) -> str:
     return "\n\n".join(text_parts) if text_parts else "用戶未提供任何回饋內容。"
 
 
-def process_images(images_data: list[dict]) -> list[MCPImage]:
+def process_images(images_data: list[dict]) -> list[ImageContent]:
     """
-    處理圖片資料，轉換為 MCP 圖片對象
+    處理圖片資料，轉換為 MCP ImageContent 對象
 
     Args:
         images_data: 圖片資料列表
 
     Returns:
-        List[MCPImage]: MCP 圖片對象列表
+        List[ImageContent]: MCP ImageContent 對象列表
     """
-    mcp_images = []
+    image_contents = []
 
     for i, img in enumerate(images_data, 1):
         try:
@@ -406,9 +406,10 @@ def process_images(images_data: list[dict]) -> list[MCPImage]:
             else:
                 image_format = "png"  # 默認使用 PNG
 
-            # 創建 MCPImage 對象
+            # 創建 MCPImage 對象並轉換為 ImageContent
             mcp_image = MCPImage(data=image_bytes, format=image_format)
-            mcp_images.append(mcp_image)
+            image_content = mcp_image.to_image_content()
+            image_contents.append(image_content)
 
             debug_log(f"圖片 {i} ({file_name}) 處理成功，格式: {image_format}")
 
@@ -421,8 +422,8 @@ def process_images(images_data: list[dict]) -> list[MCPImage]:
             )
             debug_log(f"圖片 {i} 處理失敗 [錯誤ID: {error_id}]: {e}")
 
-    debug_log(f"共處理 {len(mcp_images)} 張圖片")
-    return mcp_images
+    debug_log(f"共處理 {len(image_contents)} 張圖片")
+    return image_contents
 
 
 # ===== MCP 工具定義 =====
@@ -449,7 +450,7 @@ async def interactive_feedback(
         timeout: Timeout in seconds for waiting user feedback (default: 600 seconds)
 
     Returns:
-        list: List containing TextContent and MCPImage objects representing user feedback
+        list: List containing TextContent and ImageContent objects representing user feedback
     """
     # 環境偵測
     is_remote = is_remote_environment()
@@ -491,10 +492,10 @@ async def interactive_feedback(
 
         # 添加圖片回饋
         if result.get("images"):
-            mcp_images = process_images(result["images"])
+            image_contents = process_images(result["images"])
             # 修復 arg-type 錯誤 - 直接擴展列表
-            feedback_items.extend(mcp_images)
-            debug_log(f"已添加 {len(mcp_images)} 張圖片")
+            feedback_items.extend(image_contents)
+            debug_log(f"已添加 {len(image_contents)} 張圖片")
 
         # 確保至少有一個回饋項目
         if not feedback_items:
